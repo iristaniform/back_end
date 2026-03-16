@@ -260,6 +260,195 @@ async def get_doctors_count():
 
     return {"count": count}
 
+   # =====================================================
+# APPOINTMENT MODEL
+# =====================================================
+
+class AppointmentCreate(BaseModel):
+    patient_id: int
+    doctor_id: int
+    appointment_date: str          # format: "2025-04-15"
+    appointment_time: str          # format: "14:30"
+    status: Optional[str] = "pending"    # pending, confirmed, cancelled, completed
+    notes: Optional[str] = None
+
+
+class AppointmentUpdate(BaseModel):
+    appointment_date: Optional[str] = None
+    appointment_time: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+# =====================================================
+# APPOINTMENT ROUTES
+# =====================================================
+
+@app.post("/appointments", status_code=status.HTTP_201_CREATED)
+async def create_appointment(appointment: AppointmentCreate):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO appointments
+        (patient_id, doctor_id, appointment_date, appointment_time, status, notes)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+
+    values = (
+        appointment.patient_id,
+        appointment.doctor_id,
+        appointment.appointment_date,
+        appointment.appointment_time,
+        appointment.status,
+        appointment.notes
+    )
+
+    try:
+        cursor.execute(query, values)
+        conn.commit()
+        new_id = cursor.lastrowid
+    except Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to create appointment: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return {"message": "Appointment created successfully", "appointment_id": new_id}
+
+
+@app.get("/appointments/list")
+async def get_appointments_list():
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+        SELECT 
+            a.appointment_id,
+            a.patient_id,
+            CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+            a.doctor_id,
+            CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
+            a.appointment_date,
+            a.appointment_time,
+            a.status,
+            a.notes
+        FROM appointments a
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
+        LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+    """
+
+    cursor.execute(query)
+    appointments = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return appointments
+
+
+@app.get("/appointments/{appointment_id}")
+async def get_appointment(appointment_id: int):
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+        SELECT 
+            a.appointment_id,
+            a.patient_id,
+            CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+            a.doctor_id,
+            CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
+            a.appointment_date,
+            a.appointment_time,
+            a.status,
+            a.notes
+        FROM appointments a
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
+        LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+        WHERE a.appointment_id = %s
+    """
+
+    cursor.execute(query, (appointment_id,))
+    appointment = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    return appointment
+
+
+@app.put("/appointments/{appointment_id}")
+async def update_appointment(appointment_id: int, appointment: AppointmentUpdate):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    updates = []
+    values = []
+
+    if appointment.appointment_date is not None:
+        updates.append("appointment_date = %s")
+        values.append(appointment.appointment_date)
+    if appointment.appointment_time is not None:
+        updates.append("appointment_time = %s")
+        values.append(appointment.appointment_time)
+    if appointment.status is not None:
+        updates.append("status = %s")
+        values.append(appointment.status)
+    if appointment.notes is not None:
+        updates.append("notes = %s")
+        values.append(appointment.notes)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    query = f"UPDATE appointments SET {', '.join(updates)} WHERE appointment_id = %s"
+    values.append(appointment_id)
+
+    try:
+        cursor.execute(query, tuple(values))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+        conn.commit()
+    except Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Update failed: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return {"message": "Appointment updated successfully"}
+
+
+@app.delete("/appointments/{appointment_id}")
+async def delete_appointment(appointment_id: int):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("DELETE FROM appointments WHERE appointment_id = %s", (appointment_id,))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+        conn.commit()
+    except Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Delete failed: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return {"message": "Appointment deleted successfully"} 
+
 
 # -------------------- RUN SERVER --------------------
 
