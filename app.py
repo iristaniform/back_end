@@ -198,7 +198,7 @@ async def get_doctors_list():
     cursor.close()
     conn.close()
 
-    return doctors  
+    return {"doctors": result} 
 
 
 @app.put("/doctors/{doctor_id}")
@@ -232,18 +232,18 @@ async def update_doctor(doctor_id: int, doctor: DoctorCreate):
 
 
 @app.delete("/doctors/{doctor_id}")
-async def delete_doctor(doctor_id: int):
+async def get_doctors():
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("DELETE FROM doctors WHERE doctor_id=%s", (doctor_id,))
+    cursor.execute
     conn.commit()
 
     cursor.close()
     conn.close()
 
-    return {"message": "Doctor deleted successfully"}
+    return [{"id": 1, "name": "Dr. Smith", "specialization": "Cardiology"}]
 
 
 @app.get("/doctors/count")
@@ -268,15 +268,11 @@ class AppointmentCreate(BaseModel):
     patient_id: int
     doctor_id: int
     appointment_date: str          # format: "2025-04-15"
-    appointment_time: str          # format: "14:30"
-    status: Optional[str] = "pending"    # pending, confirmed, cancelled, completed
     notes: Optional[str] = None
 
 
 class AppointmentUpdate(BaseModel):
     appointment_date: Optional[str] = None
-    appointment_time: Optional[str] = None
-    status: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -292,7 +288,7 @@ async def create_appointment(appointment: AppointmentCreate):
 
     query = """
         INSERT INTO appointments
-        (patient_id, doctor_id, appointment_date, appointment_time, status, notes)
+        (patient_id, doctor_id, appointment_date, status, notes)
         VALUES (%s, %s, %s, %s, %s, %s)
     """
 
@@ -300,7 +296,6 @@ async def create_appointment(appointment: AppointmentCreate):
         appointment.patient_id,
         appointment.doctor_id,
         appointment.appointment_date,
-        appointment.appointment_time,
         appointment.status,
         appointment.notes
     )
@@ -332,11 +327,7 @@ async def get_appointments_list():
             CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
             a.doctor_id,
             CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
-            a.appointment_date,
-            a.appointment_time,
-            a.status,
-            a.notes
-        FROM appointments a
+           FROM appointments a
         LEFT JOIN patients p ON a.patient_id = p.patient_id
         LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
@@ -365,10 +356,7 @@ async def get_appointment(appointment_id: int):
             a.doctor_id,
             CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
             a.appointment_date,
-            a.appointment_time,
-            a.status,
-            a.notes
-        FROM appointments a
+            FROM appointments a
         LEFT JOIN patients p ON a.patient_id = p.patient_id
         LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
         WHERE a.appointment_id = %s
@@ -398,9 +386,6 @@ async def update_appointment(appointment_id: int, appointment: AppointmentUpdate
     if appointment.appointment_date is not None:
         updates.append("appointment_date = %s")
         values.append(appointment.appointment_date)
-    if appointment.appointment_time is not None:
-        updates.append("appointment_time = %s")
-        values.append(appointment.appointment_time)
     if appointment.status is not None:
         updates.append("status = %s")
         values.append(appointment.status)
