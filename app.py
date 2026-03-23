@@ -27,7 +27,7 @@ app.add_middleware(
 
 # -------------------- DATABASE --------------------
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "192.168.4.215",
     "database": "hospital_db",
     "user": "iris",
     "password": "Iris@2026",
@@ -208,7 +208,11 @@ async def get_doctors_list():
     cursor.close()
     conn.close()
 
+<<<<<<< HEAD
     return doctors 
+=======
+    return result
+>>>>>>> 31b53e1dd96c4aca1847cf613c70cf8c8761b5f7
 
 
 @app.put("/doctors/{doctor_id}")
