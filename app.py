@@ -203,16 +203,12 @@ async def get_doctors_list():
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("SELECT * FROM doctors")
-    doctors = cursor.fetchall()
+    result = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
-<<<<<<< HEAD
-    return doctors 
-=======
     return result
->>>>>>> 31b53e1dd96c4aca1847cf613c70cf8c8761b5f7
 
 
 @app.put("/doctors/{doctor_id}")
