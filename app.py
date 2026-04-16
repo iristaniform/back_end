@@ -27,7 +27,7 @@ app.add_middleware(
 
 # -------------------- DATABASE --------------------
 DB_CONFIG = {
-    "host": "192.168.4.215",
+    "host": "localhost",
     "database": "hospital_db",
     "user": "iris",
     "password": "Iris@2026",
